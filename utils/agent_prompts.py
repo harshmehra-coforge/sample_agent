@@ -133,6 +133,15 @@ A comprehensive BRD following this structure:
     - Sample screens
     - External document references
 
+15. **Traceability Matrix** *(mandatory — always include)*
+    A table linking every Business Requirement to its corresponding Functional Requirement(s):
+
+    | BR-ID | Business Objective | Functional Requirement(s) |
+    |---|---|---|
+    | BR-01 | [Objective from section 3] | FR-01, FR-02 |
+    | BR-02 | [Objective from section 3] | FR-03 |
+    *(Add one row per Business Requirement. Every BR-ID must appear. No BR may be left unmapped.)*
+
 WHEN WRITING THE DOCUMENT:
 - Reflect only what is explicitly provided in the requirements or reference materials.
 - Include a **References** section listing only the document names actually used.
@@ -142,6 +151,13 @@ WHEN WRITING THE DOCUMENT:
 - Ensure all requirements are clear, verifiable, and traceable.
 - Use appropriate domain language based on the context.
 - Each requirement should answer: WHAT (functionality), WHY (value), WHO (user role).
+- **SMART Self-Enforcement**: Before finalising each requirement, verify it satisfies all five SMART criteria:
+  * **Specific** — states exactly what must be achieved, not a general wish
+  * **Measurable** — includes a quantifiable success indicator (number, %, threshold, SLA)
+  * **Achievable** — realistic within the stated scope and constraints
+  * **Relevant** — directly supports a stated Business Objective
+  * **Time-bound** — references a delivery phase, milestone, or deadline where applicable
+  If a requirement fails any criterion, rewrite it until it passes before including it in the document.
 
 CORE PRINCIPLES:
 - **Clarity**: Every requirement must be unambiguous
@@ -237,6 +253,98 @@ product specs for sales proposals, API specs for technical docs).
         
         - Do NOT output questions or request clarifications.
         - Do NOT reveal conversation history.
+    """,
+
+    "vague_input_disambiguator": """
+You are a requirements quality analyst. Your sole task is to detect vague, unmeasurable language in the provided requirements text and flag it before a BRD is written.
+
+VAGUE TERMS TO DETECT (non-exhaustive):
+- Performance: "fast", "quick", "responsive", "real-time", "instant", "efficient", "performant"
+- Security: "secure", "safe", "protected" (without naming a standard, algorithm, or compliance requirement)
+- Usability: "user-friendly", "easy to use", "intuitive", "simple", "clean", "modern"
+- Reliability: "reliable", "robust", "stable", "highly available" (without an SLA percentage)
+- Scalability: "scalable", "handles many users", "supports large data" (without concrete numbers)
+- Quality: "good", "high quality", "accurate", "correct", "better" (without measurable criteria)
+
+INSTRUCTIONS:
+1. Read the provided requirements text carefully.
+2. Identify every vague or unmeasurable term present.
+3. For each flagged term, quote the phrase and state what measurable definition is needed.
+
+OUTPUT FORMAT — return ONLY one of these two forms, nothing else:
+
+If vague terms are found:
+VAGUE_TERMS_FOUND
+- Term: "[vague word]" | Context: "[surrounding phrase]" | Needs: "[what measurable definition is required]"
+(one line per finding)
+
+If no vague terms are found:
+NO_VAGUE_TERMS
+    """,
+
+    "section_completeness_scorer": """
+You are a BRD quality auditor. Given a Business Requirements Document, evaluate each standard section for completeness.
+
+SECTIONS TO EVALUATE:
+1. Executive Summary
+2. Project Background / Business Context
+3. Business Objectives
+4. Scope Definition
+5. Stakeholder List & Responsibilities
+6. Assumptions and Dependencies
+7. Business Requirements
+8. Functional Requirements
+9. Non-Functional Requirements (NFRs)
+10. Process Flow / User Journey Maps
+11. Data Requirements
+12. Reporting & Analytics Requirements
+13. Risks & Mitigation
+14. Traceability Matrix
+
+SCORING CRITERIA:
+- Complete: Section is present and contains specific, measurable, actionable content.
+- Partial: Section is present but contains vague, thin, or incomplete content.
+- Missing: Section is entirely absent or is a placeholder only.
+
+OUTPUT FORMAT (return ONLY this table — no other text):
+| Section | Status | Notes |
+|---|---|---|
+| Executive Summary | Complete/Partial/Missing | [one-line note only if Partial or Missing, else —] |
+| Project Background / Business Context | Complete/Partial/Missing | [note or —] |
+| Business Objectives | Complete/Partial/Missing | [note or —] |
+| Scope Definition | Complete/Partial/Missing | [note or —] |
+| Stakeholder List & Responsibilities | Complete/Partial/Missing | [note or —] |
+| Assumptions and Dependencies | Complete/Partial/Missing | [note or —] |
+| Business Requirements | Complete/Partial/Missing | [note or —] |
+| Functional Requirements | Complete/Partial/Missing | [note or —] |
+| Non-Functional Requirements (NFRs) | Complete/Partial/Missing | [note or —] |
+| Process Flow / User Journey Maps | Complete/Partial/Missing | [note or —] |
+| Data Requirements | Complete/Partial/Missing | [note or —] |
+| Reporting & Analytics Requirements | Complete/Partial/Missing | [note or —] |
+| Risks & Mitigation | Complete/Partial/Missing | [note or —] |
+| Traceability Matrix | Complete/Partial/Missing | [note or —] |
+    """,
+
+    "gap_detector": """
+You are a BRD quality reporter. You receive a section completeness scorecard table.
+
+Your task: Convert the scorecard into a concise, human-readable gap report to be shown to the user ABOVE their BRD.
+
+RULES:
+- Only report sections rated Partial or Missing. Skip all Complete sections.
+- If ALL sections are Complete, output exactly:
+  **Quality Check Passed** — All BRD sections are complete and well-defined.
+- Otherwise, use this exact format:
+
+**BRD Quality Gaps Detected**
+
+The following sections require attention before this document is considered complete:
+
+| Section | Status | Action Required |
+|---|---|---|
+| [Section Name] | Partial/Missing | [Specific action, under 15 words] |
+
+Keep action descriptions short and specific, not generic. Output ONLY the formatted report. No preamble, no explanation.
     """
 }
 
@@ -270,10 +378,13 @@ hitl_agent = {
     3. **Incorporate Feedback**: Based on the feedback provided, identify areas of improvement or gaps in the original document and update ONLY the sections explicitly mentioned in the feedback.
        - Do NOT assume missing details.
        - Do NOT change unrelated sections.
-    
+       - Do NOT renumber requirements in sections that were not touched.
+       - Mark every requirement line or section heading that was changed with the prefix **[UPDATED]** immediately before the changed text. Do not mark unchanged content.
+       - The `[UPDATED]` labels will be stripped automatically at finalisation — include them precisely so the finaliser can remove them cleanly.
+
     4. **Maintain Consistency**: Ensure the updated document adheres to the expected format and maintains a clear, structured, professional writing style.
-    
-    5. **Rectify Issues**: Address all feedback‑related issues while preserving the original meaning and context of the document.
+
+    5. **Rectify Issues**: Address all feedback‑related issues while preserving the original meaning and context of the document. If the feedback requests a change to a numbered requirement (e.g., "FR-03"), update that specific item only and preserve all other requirement IDs and their text exactly.
 
 
     # Steps
@@ -312,6 +423,16 @@ hitl_agent = {
 
     "suggestion_validation_prompt": """
         Provide suggestions or improvements for the document if anything remains incomplete, unclear, or unaddressed.
+
+        In addition to general completeness and clarity checks, explicitly evaluate the following four quality dimensions and raise a suggestion for each failure found:
+
+        1. **Missing Acceptance Criteria**: Every Functional Requirement must have at least one measurable acceptance criterion stating how it can be tested or validated. Flag any FR that lacks this.
+
+        2. **Unmeasurable NFRs**: Every Non-Functional Requirement must include a quantifiable threshold (e.g., response time < 2s, 99.9% uptime, AES-256 encryption). Flag any NFR that uses vague language without a numeric or standards-based target.
+
+        3. **Absent Stakeholder Sign-Off Field**: The document should include a sign-off or approval field identifying who must approve the BRD before development begins (name, role, date). Flag if this is missing from the Stakeholder section or Appendix.
+
+        4. **Requirements Missing Who/What/Why**: Each Business Requirement must answer WHO needs it (user role or stakeholder), WHAT must be achieved (specific capability), and WHY it matters (business value or objective). Flag any requirement that omits one or more of these elements.
 
         Output should be a list:
         [
